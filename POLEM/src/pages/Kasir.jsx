@@ -4,6 +4,10 @@ import { AppContext } from "../context/AppContext";
 export default function Kasir() {
   const { products, addTransaction } = useContext(AppContext);
   const [cart, setCart] = useState([]);
+  
+  // State baru untuk mengontrol tampilan Struk
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
 
   const handleAddToCart = (product) => {
     setCart((prevCart) => {
@@ -43,18 +47,36 @@ export default function Kasir() {
       id: `TRX-${Date.now().toString().slice(-6)}`,
       date: formattedDate,
       items: itemSummary,
+      cartDetails: [...cart], // Menyimpan detail keranjang untuk dicetak
       total: totalHarga
     };
 
+    // 1. Simpan ke Gudang Data
     addTransaction(newTransaction);
-    alert(`Pembayaran berhasil!\nID: ${newTransaction.id}\nTotal: Rp ${totalHarga.toLocaleString("id-ID")}`);
+    
+    // 2. Tampilkan Modal Struk dengan data transaksi barusan
+    setReceiptData(newTransaction);
+    setShowReceipt(true);
+    
+    // 3. Kosongkan keranjang untuk transaksi berikutnya
     setCart([]); 
   };
 
+  // Fungsi untuk memicu perintah cetak (print) bawaan browser
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Fungsi untuk menutup struk dan kembali ke kasir
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setReceiptData(null);
+  };
+
   return (
-    <div className="h-full flex gap-6">
-      {/* Sisi Kiri: Katalog Produk dengan Foto */}
-      <div className="flex-1 flex flex-col">
+    <div className="h-full flex gap-6 relative">
+      {/* Sisi Kiri: Katalog Produk (Akan disembunyikan saat di-print) */}
+      <div className="flex-1 flex flex-col print:hidden">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Menu Kasir</h2>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-4">
           {products.map((product) => (
@@ -73,8 +95,8 @@ export default function Kasir() {
         </div>
       </div>
 
-      {/* Sisi Kanan: Keranjang */}
-      <div className="w-[400px] bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+      {/* Sisi Kanan: Keranjang (Akan disembunyikan saat di-print) */}
+      <div className="w-[400px] bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full print:hidden">
         <div className="flex justify-between items-center mb-4 border-b pb-2">
           <h2 className="text-xl font-bold text-gray-800">Keranjang</h2>
           {cart.length > 0 && (
@@ -125,6 +147,74 @@ export default function Kasir() {
           </button>
         </div>
       </div>
+
+      {/* MODAL STRUK CETAK */}
+      {showReceipt && receiptData && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 print:bg-white print:p-0">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden flex flex-col print:shadow-none print:max-w-full">
+            
+            {/* Area Kertas Struk */}
+            <div className="p-6 bg-white text-gray-800" id="printable-receipt">
+              <div className="text-center mb-6 border-b-2 border-dashed border-gray-300 pb-4">
+                <h2 className="text-2xl font-black uppercase tracking-wider">Toko Saya</h2>
+                <p className="text-sm text-gray-500 mt-1">Jl. Contoh Alamat No. 123</p>
+                <p className="text-sm text-gray-500">Telp: 0812-3456-7890</p>
+              </div>
+              
+              <div className="flex justify-between text-sm mb-1 text-gray-600">
+                <span>ID Transaksi:</span>
+                <span className="font-semibold">{receiptData.id}</span>
+              </div>
+              <div className="flex justify-between text-sm mb-4 text-gray-600">
+                <span>Waktu:</span>
+                <span>{receiptData.date}</span>
+              </div>
+
+              <div className="border-t-2 border-b-2 border-dashed border-gray-300 py-3 mb-4">
+                {receiptData.cartDetails.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm mb-2 last:mb-0">
+                    <div className="flex-1">
+                      <span className="font-semibold block">{item.name}</span>
+                      <span className="text-gray-500">{item.qty} x Rp {item.price.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="font-semibold">
+                      Rp {(item.price * item.qty).toLocaleString("id-ID")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between text-lg font-bold">
+                <span>TOTAL</span>
+                <span>Rp {receiptData.total.toLocaleString("id-ID")}</span>
+              </div>
+
+              <div className="text-center mt-8 pt-4 border-t-2 border-dashed border-gray-300">
+                <p className="font-semibold">Terima Kasih!</p>
+                <p className="text-sm text-gray-500 mt-1">Silakan berkunjung kembali</p>
+              </div>
+            </div>
+
+            {/* Tombol Aksi (Akan disembunyikan saat di-print) */}
+            <div className="bg-slate-50 p-4 flex gap-3 border-t print:hidden">
+              <button 
+                onClick={handleCloseReceipt}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg transition-colors"
+              >
+                Tutup
+              </button>
+              <button 
+                onClick={handlePrint}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors flex justify-center items-center gap-2"
+              >
+                🖨️ Cetak Struk
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

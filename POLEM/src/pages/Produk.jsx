@@ -5,6 +5,9 @@ export default function Produk() {
   const { products, setProducts } = useContext(AppContext);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // State baru untuk mendeteksi apakah kita sedang mode Edit (menyimpan ID produk) atau Tambah (null)
+  const [editingId, setEditingId] = useState(null); 
+  
   const [formData, setFormData] = useState({
     name: "",
     category: "Minuman",
@@ -18,17 +21,28 @@ export default function Produk() {
     }
   };
 
+  // Fungsi baru untuk membuka modal dalam mode Edit
+  const handleEdit = (product) => {
+    // Isi formulir dengan data produk yang dipilih
+    setFormData({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      image: product.image
+    });
+    setEditingId(product.id); // Tandai bahwa kita sedang mengedit produk ini
+    setIsModalOpen(true);     // Buka modal
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Fungsi baru untuk menangani unggahan file foto
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      // Mengubah file gambar menjadi URL lokal (Base64) agar bisa langsung ditampilkan
       reader.onloadend = () => {
         setFormData({ ...formData, image: reader.result });
       };
@@ -44,17 +58,40 @@ export default function Produk() {
       return;
     }
 
-    const newProduct = {
-      id: Date.now(), 
-      name: formData.name,
-      category: formData.category,
-      price: parseInt(formData.price),
-      image: formData.image || "https://images.unsplash.com/photo-1513530176992-0cf73f0c1f28?w=300&h=300&fit=crop" 
-    };
-
-    setProducts([...products, newProduct]);
+    if (editingId) {
+      // JIKA MODE EDIT: Perbarui produk yang ID-nya cocok
+      const updatedProducts = products.map(product => 
+        product.id === editingId 
+          ? { 
+              ...product, 
+              name: formData.name, 
+              category: formData.category, 
+              price: parseInt(formData.price), 
+              image: formData.image 
+            } 
+          : product
+      );
+      setProducts(updatedProducts);
+    } else {
+      // JIKA MODE TAMBAH: Buat produk baru
+      const newProduct = {
+        id: Date.now(), 
+        name: formData.name,
+        category: formData.category,
+        price: parseInt(formData.price),
+        image: formData.image || "https://images.unsplash.com/photo-1513530176992-0cf73f0c1f28?w=300&h=300&fit=crop" 
+      };
+      setProducts([...products, newProduct]);
+    }
     
+    // Tutup modal dan bersihkan form ke kondisi awal
+    closeModal();
+  };
+
+  // Fungsi untuk menutup modal dan mereset semua state
+  const closeModal = () => {
     setIsModalOpen(false);
+    setEditingId(null);
     setFormData({ name: "", category: "Minuman", price: "", image: "" });
   };
 
@@ -102,8 +139,18 @@ export default function Produk() {
                   </td>
                   <td className="py-3 px-6 font-bold text-gray-700">Rp {product.price.toLocaleString("id-ID")}</td>
                   <td className="py-3 px-6 text-center">
-                    <button className="text-blue-500 font-semibold mr-3 hover:text-blue-700">Edit</button>
-                    <button onClick={() => handleDelete(product.id)} className="text-red-500 font-semibold hover:text-red-700">Hapus</button>
+                    <button 
+                      onClick={() => handleEdit(product)} 
+                      className="text-blue-500 font-semibold mr-3 hover:text-blue-700"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(product.id)} 
+                      className="text-red-500 font-semibold hover:text-red-700"
+                    >
+                      Hapus
+                    </button>
                   </td>
                 </tr>
               ))
@@ -112,11 +159,14 @@ export default function Produk() {
         </table>
       </div>
 
-      {/* MODAL FORM TAMBAH PRODUK */}
+      {/* MODAL FORM TAMBAH / EDIT PRODUK */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Tambah Produk Baru</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
+              {/* Judul modal berubah dinamis tergantung mode */}
+              {editingId ? "Edit Produk" : "Tambah Produk Baru"}
+            </h3>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
@@ -159,7 +209,6 @@ export default function Produk() {
                 />
               </div>
 
-              {/* UBAHAN: Tombol Upload File */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Foto Produk</label>
                 <input 
@@ -169,7 +218,6 @@ export default function Produk() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 />
                 
-                {/* Menampilkan Preview Foto setelah file dipilih */}
                 {formData.image && (
                   <div className="mt-3">
                     <p className="text-xs text-gray-500 mb-1">Preview:</p>
@@ -185,10 +233,7 @@ export default function Produk() {
               <div className="flex gap-3 mt-4">
                 <button 
                   type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setFormData({ name: "", category: "Minuman", price: "", image: "" });
-                  }}
+                  onClick={closeModal}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg transition-colors"
                 >
                   Batal
@@ -197,7 +242,7 @@ export default function Produk() {
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors"
                 >
-                  Simpan Produk
+                  {editingId ? "Simpan Perubahan" : "Simpan Produk"}
                 </button>
               </div>
             </form>
