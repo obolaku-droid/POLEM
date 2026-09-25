@@ -1,22 +1,25 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Kasir from "./pages/Kasir";
 import Produk from "./pages/Produk";
 import Laporan from "./pages/Laporan";
-
-// Import AppProvider yang baru saja kita buat
 import { AppProvider } from "./context/AppContext";
 
-function App() {
+export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
-        <div className="flex min-h-screen">
+      <Router>
+        {/* Kontainer Utama */}
+        <div className="flex bg-slate-50 min-h-screen">
           <Sidebar />
           
-          {/* Main Content Area */}
-          <main className="flex-1 bg-slate-100 p-6 overflow-y-auto">
+          {/* 
+            Area Konten Utama: 
+            pb-24 = Padding bawah untuk HP (agar tidak tertutup Bottom Navigation)
+            md:pb-6 = Padding normal untuk komputer
+          */}
+          <main className="flex-1 p-3 md:p-6 pb-24 md:pb-6 h-screen overflow-y-auto w-full">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/kasir" element={<Kasir />} />
@@ -25,9 +28,7 @@ function App() {
             </Routes>
           </main>
         </div>
-      </BrowserRouter>
+      </Router>
     </AppProvider>
   );
 }
-
-export default App;
