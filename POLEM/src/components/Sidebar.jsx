@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -11,9 +12,16 @@ export default function Sidebar() {
     { name: "Laporan", path: "/laporan", icon: "📝" },
   ];
 
+  // FUNGSI LOGOUT
+  const handleLogout = async () => {
+    if (window.confirm("Apakah Anda yakin ingin keluar?")) {
+      await supabase.auth.signOut();
+    }
+  };
+
   return (
     <>
-      {/* SIDEBAR UNTUK KOMPUTER (Akan otomatis disembunyikan di layar HP oleh kelas 'hidden md:flex') */}
+      {/* SIDEBAR KOMPUTER */}
       <div className="hidden md:flex flex-col w-64 bg-white border-r h-screen print:hidden z-10 shrink-0">
         <div className="p-6 border-b border-gray-100">
           <h1 className="text-2xl font-extrabold text-blue-600 tracking-tight">App <span className="text-gray-800">Kasir</span></h1>
@@ -32,15 +40,20 @@ export default function Sidebar() {
             </Link>
           ))}
         </nav>
+        <div className="p-4 border-t border-gray-100">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 w-full rounded-xl font-semibold text-red-500 hover:bg-red-50 transition-all">
+            <span className="text-xl">🚪</span> Keluar
+          </button>
+        </div>
       </div>
 
-      {/* MENU BAWAH KHUSUS HP (Akan muncul di HP dan hilang di komputer berkat kelas 'md:hidden') */}
+      {/* MENU BAWAH HP */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center p-2 z-50 print:hidden shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
         {menuItems.map((item) => (
           <Link
             key={item.name}
             to={item.path}
-            className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${
+            className={`flex flex-col items-center justify-center p-2 w-[20%] transition-colors ${
               isActive(item.path) ? "text-blue-600" : "text-gray-400"
             }`}
           >
@@ -50,6 +63,11 @@ export default function Sidebar() {
             <span className="text-[10px] font-bold">{item.name}</span>
           </Link>
         ))}
+        {/* Tombol Logout di Menu HP */}
+        <button onClick={handleLogout} className="flex flex-col items-center justify-center p-2 w-[20%] transition-colors text-red-400">
+          <span className="text-2xl mb-1">🚪</span>
+          <span className="text-[10px] font-bold">Keluar</span>
+        </button>
       </div>
     </>
   );
