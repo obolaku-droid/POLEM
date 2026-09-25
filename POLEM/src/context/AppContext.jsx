@@ -6,47 +6,60 @@ export const AppContext = createContext();
 export function AppProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [activeShift, setActiveShift] = useState(null);
+  const [isShiftLoading, setIsShiftLoading] = useState(true);
 
-  // Fungsi mengambil produk
+  // Ambil data produk
   const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false });
-      if (error) throw error;
-      if (data) setProducts(data);
-    } catch (error) {
-      console.error("Gagal mengambil produk:", error.message);
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase.from("products").select("*").order("id", { ascending: true });
+    if (!error && data) setProducts(data);
   };
 
-  // Fungsi mengambil riwayat transaksi
+  // Ambil data transaksi
   const fetchTransactions = async () => {
+    const { data, error } = await supabase.from("transactions").select("*").order("id", { ascending: false });
+    if (!error && data) setTransactions(data);
+  };
+
+  // Ambil status shift aktif
+  const fetchActiveShift = async () => {
     try {
-      const { data, error } = await supabase.from('transactions').select('*').order('id', { ascending: false });
-      if (error) throw error;
-      if (data) setTransactions(data);
-    } catch (error) {
-      console.error("Gagal mengambil transaksi:", error.message);
+      const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .eq("status", "buka")
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        setActiveShift(data[0]);
+      } else {
+        setActiveShift(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setActiveShift(null);
+    } finally {
+      setIsShiftLoading(false);
     }
   };
 
-  // Panggil kedua fungsi saat aplikasi pertama kali dimuat
   useEffect(() => {
     fetchProducts();
     fetchTransactions();
+    fetchActiveShift();
   }, []);
 
   return (
-    <AppContext.Provider 
-      value={{ 
-        products, 
-        fetchProducts, 
-        loading, 
-        transactions, 
-        fetchTransactions 
+    <AppContext.Provider
+      value={{
+        products,
+        setProducts,
+        fetchProducts,
+        transactions,
+        fetchTransactions,
+        activeShift,
+        fetchActiveShift,
+        isShiftLoading,
       }}
     >
       {children}
