@@ -7,6 +7,7 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: "Dashboard", path: "/", icon: "📊" },
+    { name: "Shift", path: "/shift", icon: "⏱️" }, // <--- Menu baru
     { name: "Kasir", path: "/kasir", icon: "🛒" },
     { name: "Produk", path: "/produk", icon: "📦" },
     { name: "Laporan", path: "/laporan", icon: "📝" },
