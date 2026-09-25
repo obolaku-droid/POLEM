@@ -9,6 +9,7 @@ import Kasir from "./pages/Kasir";
 import Produk from "./pages/Produk";
 import Laporan from "./pages/Laporan";
 import Login from "./pages/Login";
+import Shift from "./pages/Shift"; // Import halaman Shift
 import { AppProvider } from "./context/AppContext";
 
 export default function App() {
@@ -16,13 +17,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Cek status login saat aplikasi pertama kali dimuat
+    // Cek status login saat aplikasi pertama kali dimuat
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
     });
 
-    // 2. Dengarkan perubahan (misal: saat Anda menekan tombol login atau logout)
+    // Dengarkan perubahan (misal: saat login atau logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -47,9 +48,11 @@ export default function App() {
           /* JIKA SUDAH LOGIN: Tampilkan menu utama aplikasi Kasir */
           <div className="flex bg-slate-50 min-h-screen">
             <Sidebar />
+            
             <main className="flex-1 p-3 md:p-6 pb-24 md:pb-6 h-screen overflow-y-auto w-full relative">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/shift" element={<Shift />} /> {/* RUTE SHIFT YANG BENAR */}
                 <Route path="/kasir" element={<Kasir />} />
                 <Route path="/produk" element={<Produk />} />
                 <Route path="/laporan" element={<Laporan />} />
