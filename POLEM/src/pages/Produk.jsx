@@ -1,12 +1,15 @@
 import { useState, useContext } from "react";
 import { AppContext } from "../context/AppContext";
+// Import koneksi supabase
+import { supabase } from "../supabaseClient";
 
 export default function Produk() {
-  const { products, setProducts } = useContext(AppContext);
+  // Kita ambil fetchProducts untuk merefresh data setelah menambah/menghapus
+  const { products, fetchProducts, loading } = useContext(AppContext);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // State baru untuk mendeteksi apakah kita sedang mode Edit (menyimpan ID produk) atau Tambah (null)
   const [editingId, setEditingId] = useState(null); 
+  const [isSubmitting, setIsSubmitting] = useState(false); // State untuk efek loading saat tombol diklik
   
   const [formData, setFormData] = useState({
     name: "",
@@ -15,23 +18,35 @@ export default function Produk() {
     image: ""
   });
 
-  const handleDelete = (id) => {
+  // FUNGSI MENGHAPUS DATA KE SUPABASE
+  const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
-      setProducts(products.filter(product => product.id !== id));
+      try {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', id); // Hapus yang ID-nya cocok
+
+        if (error) throw error;
+        
+        alert("Produk berhasil dihapus!");
+        fetchProducts(); // Refresh tabel data dari database
+      } catch (error) {
+        console.error(error);
+        alert("Gagal menghapus produk: " + error.message);
+      }
     }
   };
 
-  // Fungsi baru untuk membuka modal dalam mode Edit
   const handleEdit = (product) => {
-    // Isi formulir dengan data produk yang dipilih
     setFormData({
       name: product.name,
       category: product.category,
       price: product.price,
       image: product.image
     });
-    setEditingId(product.id); // Tandai bahwa kita sedang mengedit produk ini
-    setIsModalOpen(true);     // Buka modal
+    setEditingId(product.id);
+    setIsModalOpen(true);
   };
 
   const handleInputChange = (e) => {
@@ -39,6 +54,7 @@ export default function Produk() {
     setFormData({ ...formData, [name]: value });
   };
 
+  // Upload gambar tetap menggunakan Base64 sementara
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -50,7 +66,8 @@ export default function Produk() {
     }
   };
 
-  const handleSubmit = (e) => {
+  // FUNGSI MENYIMPAN/UPDATE DATA KE SUPABASE
+  const handleSubmit = async (e) => {
     e.preventDefault(); 
     
     if (!formData.name || !formData.price) {
@@ -58,37 +75,45 @@ export default function Produk() {
       return;
     }
 
-    if (editingId) {
-      // JIKA MODE EDIT: Perbarui produk yang ID-nya cocok
-      const updatedProducts = products.map(product => 
-        product.id === editingId 
-          ? { 
-              ...product, 
-              name: formData.name, 
-              category: formData.category, 
-              price: parseInt(formData.price), 
-              image: formData.image 
-            } 
-          : product
-      );
-      setProducts(updatedProducts);
-    } else {
-      // JIKA MODE TAMBAH: Buat produk baru
-      const newProduct = {
-        id: Date.now(), 
-        name: formData.name,
-        category: formData.category,
-        price: parseInt(formData.price),
-        image: formData.image || "https://images.unsplash.com/photo-1513530176992-0cf73f0c1f28?w=300&h=300&fit=crop" 
-      };
-      setProducts([...products, newProduct]);
+    setIsSubmitting(true); // Ubah tombol jadi "Menyimpan..."
+
+    const productData = {
+      name: formData.name,
+      category: formData.category,
+      price: parseInt(formData.price),
+      image: formData.image || "https://images.unsplash.com/photo-1513530176992-0cf73f0c1f28?w=300&h=300&fit=crop"
+    };
+
+    try {
+      if (editingId) {
+        // UPDATE (Jika Mode Edit)
+        const { error } = await supabase
+          .from('products')
+          .update(productData)
+          .eq('id', editingId);
+
+        if (error) throw error;
+        alert("Produk berhasil diperbarui!");
+      } else {
+        // INSERT (Jika Mode Tambah Baru)
+        const { error } = await supabase
+          .from('products')
+          .insert([productData]);
+
+        if (error) throw error;
+        alert("Produk baru berhasil ditambahkan!");
+      }
+      
+      fetchProducts(); // Refresh tabel data
+      closeModal();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menyimpan data: " + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Tutup modal dan bersihkan form ke kondisi awal
-    closeModal();
   };
 
-  // Fungsi untuk menutup modal dan mereset semua state
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
@@ -122,8 +147,10 @@ export default function Produk() {
             </tr>
           </thead>
           <tbody className="text-gray-600 text-sm font-light">
-            {products.length === 0 ? (
-              <tr><td colSpan="5" className="py-8 text-center text-gray-400">Belum ada produk.</td></tr>
+            {loading ? (
+              <tr><td colSpan="5" className="py-8 text-center text-blue-500 font-bold">Memuat data dari server...</td></tr>
+            ) : products.length === 0 ? (
+              <tr><td colSpan="5" className="py-8 text-center text-gray-400">Belum ada produk. Silakan tambah baru.</td></tr>
             ) : (
               products.map((product) => (
                 <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -159,37 +186,22 @@ export default function Produk() {
         </table>
       </div>
 
-      {/* MODAL FORM TAMBAH / EDIT PRODUK */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
-              {/* Judul modal berubah dinamis tergantung mode */}
               {editingId ? "Edit Produk" : "Tambah Produk Baru"}
             </h3>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nama Produk *</label>
-                <input 
-                  type="text" 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                  placeholder="Contoh: Kopi Susu"
-                  required
-                />
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" placeholder="Contoh: Kopi Susu" required />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                <select 
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 bg-white"
-                >
+                <select name="category" value={formData.category} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 bg-white">
                   <option value="Minuman">Minuman</option>
                   <option value="Makanan">Makanan</option>
                   <option value="Retail">Retail</option>
@@ -198,51 +210,23 @@ export default function Produk() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp) *</label>
-                <input 
-                  type="number" 
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                  placeholder="Contoh: 15000"
-                  required
-                />
+                <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" placeholder="Contoh: 15000" required />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Foto Produk</label>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                
+                <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                 {formData.image && (
                   <div className="mt-3">
-                    <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                    <img 
-                      src={formData.image} 
-                      alt="Preview" 
-                      className="h-24 w-24 object-cover rounded-lg border border-gray-200" 
-                    />
+                    <img src={formData.image} alt="Preview" className="h-24 w-24 object-cover rounded-lg border border-gray-200" />
                   </div>
                 )}
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg transition-colors"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors"
-                >
-                  {editingId ? "Simpan Perubahan" : "Simpan Produk"}
+                <button type="button" onClick={closeModal} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg transition-colors">Batal</button>
+                <button type="submit" disabled={isSubmitting} className={`flex-1 font-semibold py-2 rounded-lg transition-colors text-white ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                  {isSubmitting ? "Menyimpan..." : (editingId ? "Simpan Perubahan" : "Simpan Produk")}
                 </button>
               </div>
             </form>
